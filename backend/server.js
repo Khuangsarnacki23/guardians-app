@@ -6,15 +6,11 @@ const PORT = process.env.PORT || 5001;
 
 const cors = require("cors");
 
-// put this near the top, BEFORE routes and Clerk/auth middleware
-app.use(
-  cors({
-    origin: "http://localhost:3000", // explicitly allow your React dev origin
-    credentials: true, 
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"],
-  })
-);
+app.use( 
+  cors(
+    { origin: true, methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"], allowedHeaders: ["Content-Type", "Authorization"], 
+  }) 
+  );
 
 
 

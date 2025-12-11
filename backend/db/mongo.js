@@ -34,7 +34,7 @@ async function connectToMongo() {
   } catch (err) {
     console.error("❌ MongoDB Connection Error:");
     console.error(err);
-    throw err; // important: this makes your route catch it
+    throw err; 
   }
 }
 
