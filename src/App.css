@@ -1,0 +1,228 @@
+.App {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+.App-main {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.screen h1 {
+  margin-bottom: 8px;
+}
+
+body {
+  background-color:#111217;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  margin:0px;
+}
+
+.screen p {
+  color: #555;
+}
+
+/* Bottom navigation bar */
+.bottom-nav {
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  border-top: 1px solid #ddd;
+  padding: 8px 0;
+  background-color: #fff;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+}
+
+.nav-item {
+  flex: 1;
+  background: none;
+  border: none;
+  outline: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #555;
+  padding: 4px 0;
+  cursor: pointer;
+}
+
+.nav-item:hover {
+  background-color: #f5f5f5;
+}
+
+.nav-item.active {
+  color: #007bff;
+}
+
+.nav-icon {
+  width: 24px;
+  height: 24px;
+}
+.primary-btn {
+  justify-self: center;
+  border-radius: 999px;
+  border: none;
+  padding: 0.45rem 1.4rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  color: #0b1120;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.6);
+  transition: transform 0.1s 
+ease, box-shadow 0.1s 
+ease;
+}
+.upload-btn {
+  display: inline-block;
+  background: #111;
+  color: #fff;
+  padding: 10px 18px;
+  border-radius: 8px;
+  border: 1px solid #333;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background 0.2s ease, border-color 0.2s ease;
+}
+
+/* Hover effect */
+.upload-btn:hover {
+  background: #222;
+  border-color: #555;
+}
+
+/* Hide the real file input entirely */
+.upload-btn input[type="file"] {
+  display: none;
+}
+
+
+.btn-secondary {
+  padding: 6px 10px;
+  border-radius: 8px;
+  background-color: #1f1f2d; /* slightly darker than chips */
+  color:white;
+  border: 1px solid #343446;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s, transform 0.1s;
+}
+
+.btn-secondary:hover {
+  background-color: #2b2b3b;
+  border-color: #4a4a60;
+}
+
+.btn-secondary:active {
+  transform: translateY(-1px);
+}
+/* Root container */
+.auth-hero {
+  position: relative;
+  min-height: 100vh;
+  overflow: hidden;
+  display: flex;
+  align-items: flex-start; 
+  justify-content: center;
+  padding: 24px 18px;
+  background: #050510;
+}
+
+/* Background video covers the screen */
+.auth-hero-video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;          /* keep it filling screen */
+  filter: saturate(1.1);
+  z-index: 0;
+  pointer-events: none;       /* video not clickable */
+
+}
+
+/* Dark overlay to control opacity+focus */
+.auth-hero-overlay {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(
+      to top,
+      rgba(5, 5, 15, 0.95),
+      rgba(5, 5, 15, 0.7),
+      rgba(5, 5, 15, 0.9)
+    );
+  z-index: 1;
+}
+
+/* Foreground content */
+.auth-hero-content {
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  max-width: 420px;
+  padding: 18px 16px 20px;
+  border-radius: 18px;
+  background: rgba(14, 14, 30, 0.9);
+  border: 1px solid rgba(148, 163, 255, 0.25);
+  backdrop-filter: blur(10px);
+}
+
+/* Text styling tuned for mobile */
+.auth-hero-title {
+  font-size: 1.6rem;
+  margin-bottom: 6px;
+  color: #f9fafb;
+  margin-top: 3px;
+}
+
+.auth-hero-subtitle {
+  font-size: 0.9rem;
+  color: #c7c9f2;
+  margin-bottom: 12px;
+  line-height: 1.4;
+}
+
+.auth-hero-bullets {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 1.0rem;
+  color: #d1d5f0;
+  margin-bottom: 16px;
+}
+
+.auth-hero-bullets span::before {
+  margin-right: 4px;
+}
+
+.auth-hero-cta {
+  width: 100%;
+  margin-top: 4px;
+}
+
+/* You can add minor tweaks on larger screens later */
+@media (min-width: 768px) {
+  .auth-hero {
+    align-items: center;
+    padding: 40px 24px;
+  }
+
+  .auth-hero-content {
+    max-width: 480px;
+  }
+
+  .auth-hero-title {
+    font-size: 2rem;
+  }
+}

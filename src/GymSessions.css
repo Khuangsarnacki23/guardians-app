@@ -1,0 +1,135 @@
+/* === 3D Gym Session Carousel === */
+
+.gym-carousel {
+    position: relative;
+    width: min(23rem, 100% - 2rem);
+    height: 23rem;
+    margin: 0 auto 0;
+    perspective: 500px;
+    transform-style: preserve-3d;
+  
+    /* 🔒 lock touch scrolling while interacting */
+    touch-action: none;
+    overscroll-behavior: none;
+  }
+  
+  /* Container for each card in the 3D stack */
+  .gym-card-container {
+    position: absolute;
+    width: 80%;
+    height: 100%;
+    transform:
+      rotateY(calc(var(--offset) * 50deg))
+      scaleY(calc(1 + var(--abs-offset) * -0.4))
+      translateZ(calc(var(--abs-offset) * -30rem))
+      translateX(calc(var(--direction) * -5rem));
+    filter: blur(calc(var(--abs-offset) * 1rem));
+    /* transition is now controlled inline so we can disable it while dragging */
+  }
+  
+  /* Individual card styling */
+  .gym-card {
+    width: 100%;
+    height: 80%;
+    padding: 1.5rem;
+    border-radius: 1rem;
+    text-align: left;
+    background-color: hsl(
+      280deg,
+      40%,
+      calc(100% - var(--abs-offset) * 50%)
+    );
+    color: #9ca3af;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+  }
+  
+  .gym-card h3 {
+    text-align: center;
+    font-size: 1.6rem;
+    font-weight: 700;
+    margin: 0 0 0.7em;
+    color: #1f2937;
+  }
+  
+  .gym-card-meta {
+    display: flex;
+    flex-direction: row;
+    gap: 30px;
+    font-size: 0.9rem;
+    align-items: center;
+    justify-content: center;
+    margin: 0;
+  }
+  .chart-range-toggle {
+    display: flex;
+    gap: 0.5rem;
+    margin: 0.75rem 0 0.5rem;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  
+  .range-btn {
+    border: none;
+    border-radius: 9999px;
+    padding: 0.3rem 1rem;
+    font-size: 0.75rem;
+    cursor: pointer;
+    background: #e5e7eb;
+  }
+  
+  .range-btn-active {
+    background: #3b82f6;
+    color: white;
+  }
+  
+  .exercise-video-wrapper {
+    margin-top: 0.75rem;
+    border-radius: 0.75rem;
+    overflow: hidden;
+    border: 1px solid rgba(15, 23, 42, 0.4);
+  }
+  
+  .exercise-video {
+    width: 100%;
+    display: block;
+  }
+  
+  /* Navigation arrows */
+  .gym-nav {
+    color: white;
+    font-size: 2.5rem;
+    position: absolute;
+    top: 50%;
+    z-index: 2;
+    transform: translateY(-50%);
+    cursor: pointer;
+    user-select: none;
+    background: none;
+    border: none;
+    padding: 0 0.25rem;
+  }
+  
+  .gym-nav-left {
+    left: -2.5rem;
+  }
+  
+  .gym-nav-right {
+    right: -2.5rem;
+  }
+  
+  @media (max-width: 480px) {
+    .gym-carousel {
+      height: 20rem;
+    }
+  }
+.session-detail-title{
+    margin-bottom: 0px;
+    align-self:center;
+}
+.session-detail-subtitle{
+    align-self: center;
+    margin-top:3px;
+    margin-bottom:5px;
+}

@@ -1,0 +1,445 @@
+.home {
+    padding: 16px;
+    padding-bottom: 80px; /* space above bottom nav */
+    background-color: #111217;
+    min-height: 100vh;
+    color: #f5f5f5;
+  }
+  
+  .home-header {
+    margin-bottom: 12px;
+  }
+  
+  .home-title {
+    font-size: 24px;
+    font-weight: 700;
+    color: #f6f3ff;
+  }
+  
+  .home-subtitle {
+    font-size: 14px;
+    color: #b6b4d6;
+  }
+  
+  /* Gym / Pitching chips */
+  
+  .mode-toggle {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+  
+  .mode-chip {
+    flex: 1;
+    padding: 8px 12px;
+    border-radius: 999px;
+    border: none;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    white-space: nowrap;
+    background-color: #262636;
+    color: #b6b4d6;
+    transition: background 0.2s, color 0.2s, transform 0.1s;
+  }
+  
+  .mode-chip.active {
+    background-color: #ffca28;
+    color: #111217;
+    transform: translateY(-1px);
+  }
+  
+  /* Section */
+  
+  .home-section {
+    margin-top: 8px;
+  }
+  
+  .section-title {
+    font-size: 18px;
+    font-weight: 700;
+    color: #ffca28;
+    margin-bottom: 4px;
+  }
+  
+  .section-subtitle {
+    font-size: 13px;
+    color: #b6b4d6;
+    margin-bottom: 12px;
+  }
+  
+  /* Cards */
+  
+  .card-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  
+  .session-card {
+    display: flex;
+    flex-direction:column;
+    justify-content: space-between;
+    align-items: stretch;
+    background-color: #1c1c2a;
+    border-radius: 16px;
+    padding: 12px;
+    gap: 5px;
+    box-shadow: 0 8px 18px rgba(0, 0, 0, 0.35);
+  }
+  
+  .session-card-info {
+    flex: 1.3;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+  }
+  
+  .session-title {
+    font-size: 16px;
+    font-weight: 600;
+    margin-top:5px;
+    margin-bottom:0px;
+  }
+  
+  .session-description {
+    font-size: 12px;
+    color: #c6c4e0;
+    margin-bottom: 8px;
+  }
+  
+  .session-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    font-size: 11px;
+    color: #a3a0c5;
+  }
+  
+  /* Image side */
+  
+  .session-card-image-wrapper {
+    position: relative;
+    flex: 1;
+    max-width: 140px;
+  }
+  
+  .session-image {
+    width: 100%;
+    height: 100%;
+    border-radius: 14px;
+    object-fit: cover;
+  }
+  
+  .session-favorite {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    border: none;
+    border-radius: 999px;
+    width: 24px;
+    height: 24px;
+    font-size: 14px;
+    background-color: rgba(17, 18, 23, 0.75);
+    color: #ffdd57;
+    cursor: pointer;
+  }
+  
+  .menu-root {
+    position: relative;
+    width: 100%;
+  }
+  
+  .menu-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.45);
+    z-index: 1000;
+  }
+  .menu-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+  }
+  
+  .menu-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: #f6f3ff;
+  }
+  
+  .menu-close-btn {
+    border: none;
+    background: transparent;
+    color: #c6c4e0;
+    font-size: 20px;
+    line-height: 1;
+    cursor: pointer;
+  }
+  .menu-popover {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: #111827;        /* or whatever you're using */
+    border-radius: 16px;
+    padding: 16px;
+    max-width: 420px;
+    width: 90%;
+    max-height: 80vh;           /* 🔹 do not exceed viewport height */
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.5);
+    z-index: 1001;
+  }
+  .menu-body {
+    overflow-y: auto;           /* 🔹 scroll when content is tall */
+    padding-right: 4px;         /* tiny padding so scrollbar doesn’t hug text */
+  }
+  .menu-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: #f6f3ff;
+  }
+
+  .goals-row {
+    padding:5px;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+  .goals-row input{
+    padding:2px;
+  }
+  .goals-label{
+    padding-right:6px;
+  }
+  .flexMenu{
+    display:flex;
+    gap:10px;
+    height: 40px;
+  }
+  .exercise-card {
+    border-radius: 12px;
+    background-color: #111217;
+    padding: 10px;
+    margin-bottom: 10px;
+    border: 1px solid #34344a;
+    display: flex;
+    flex-direction: column;
+  }
+  
+  .exercise-card.minimized {
+    padding: 8px 10px;
+    cursor: pointer;
+    background-color: #181828;
+  }
+  
+  .exercise-min-line {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  
+  .exercise-min-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: #f6f3ff;
+  }
+  
+  .exercise-min-meta {
+    font-size: 11px;
+    color: #a3a0c5;
+  }
+  
+  .exercise-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+  }
+  
+  .exercise-card-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: #f6f3ff;
+  }
+  
+  .exercise-collapse-btn {
+    border: none;
+    background: transparent;
+    color: #c6c4e0;
+    font-size: 16px;
+    cursor: pointer;
+  }
+  
+  
+
+  .goals-hint {
+    font-size: 11px;
+    color: #a3a0c5;
+    margin-top: 4px;
+  }
+
+  .top-bar{
+    display: flex;
+    gap: 20px;
+    margin:0;
+  }
+  .top-bar-right{
+    align-content:center;
+  }
+
+  .backgroundSessions{
+    position: absolute;
+    inset: 0;              
+    width: 100%;
+    height: 100%;
+    object-fit: cover;     
+    opacity: 0.12;  
+    z-index: 0;
+    pointer-events: none;
+  }
+  .navigationButton{
+    width:25px;
+    height:25px;
+  }
+  .goal-ring-nav{
+    display: flex;
+    gap:40px;
+    align-items: center;
+    padding:10px;
+  }
+  .fullscreen-layout {
+    position: fixed;
+    inset: 0;                 /* top:0; right:0; bottom:0; left:0 */
+    z-index: 9999;            /* above header/footer/navbar */
+    background: #020617;      /* or whatever background you want */
+    display: flex;
+    align-items: stretch;
+    justify-content: center;
+    overflow: hidden;
+  }
+  
+  /* Make the session detail fill the space nicely */
+  .fullscreen-layout .session-detail {
+    width: 100%;
+    max-width: 900px;         /* tweak for your design */
+    margin: 0 auto;
+    padding: 0.75rem 1rem;
+    height: 100vh;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+  }
+  
+  /* Ensure the carousel area scrolls if needed */
+  .fullscreen-layout .gym-carousel {
+    flex: 1;
+    min-height: 0;
+  }
+ /* Ensure each carousel item is a proper anchor for the flip */
+.gym-card-container {
+    position: relative;
+    display: flex;
+    align-items: stretch;
+    justify-content: center;
+    width: 80%;
+    height: 100%;
+  }
+  
+  /* The inner element that rotates the entire card */
+  .flip-card-inner {
+    position: relative;
+    width: 121%;
+    height: 85%;
+    transform-style: preserve-3d;
+    transform-origin: center center;
+    transition: transform 0.6s cubic-bezier(0.4, 0.2, 0.2, 1);
+  }
+  
+  /* When flipped, rotate the whole card around its center */
+  .flip-card-inner.flipped {
+    transform: rotateX(180deg);
+  }
+  
+  /* Both faces are full-card overlays */
+  .flip-card-face {
+    position: absolute;
+    inset: 0;               /* top:0; right:0; bottom:0; left:0 */
+    backface-visibility: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+  
+  /* Front face = normal orientation */
+  .flip-card-front {
+    transform: rotateX(0deg);
+  }
+  
+  /* Back face = rotated 180deg so it shows when inner is flipped */
+  .flip-card-back {
+    transform: rotateX(180deg);
+  }
+  
+  /* Make the actual card fill the face and not add extra offset */
+  .session-detail .gym-card {
+    margin: 0;              /* important: no extra vertical offset */
+    height: 100%;
+    box-sizing: border-box;
+  }
+  
+  /* Scrollable card content (front and back) */
+  .scrollable-card {
+    max-height: 75vh;
+    overflow-y: auto;
+    padding-right: 8px;
+  }
+  
+  /* Chart heights */
+  .large-chart {
+    height: 260px;
+    margin-top: 0.75rem;
+    width: 100%;
+  }
+  .assistant-fab {
+    position: fixed;
+    bottom: 1.75rem;
+    z-index: 9999;
+    border: none;
+    border-radius: 999px;
+    padding: 0.75rem 1rem;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    background: linear-gradient(135deg, #ef4444, #f97316, #ffca28);
+    color: #111;
+    font-weight: 600;
+    box-shadow: 0 10px 25px rgba(15, 23, 42, 0.4);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+  
+  .assistant-fab:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 14px 30px rgba(15, 23, 42, 0.5);
+  }
+  
+  .assistant-fab:active {
+    transform: translateY(1px);
+    box-shadow: 0 6px 15px rgba(15, 23, 42, 0.4);
+  }
+  .btn-save {
+    margin-top: 5px;
+    border-radius: 7px;
+    border: none;
+    padding: 0.4rem 0.7rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+    background: #ffffff;
+    color: #022c22;
+    width: 35%;
+    cursor: pointer;
+  }

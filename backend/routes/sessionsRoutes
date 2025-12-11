@@ -1,0 +1,242 @@
+// routes/sessionsRoutes.js
+const express = require("express");
+const router = express.Router();
+const multer = require("multer");
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 50 * 1024 * 1024, 
+  },
+});
+const { getDb } = require("../db/mongo");
+const { uploadToS3, getSignedUrlForKey } = require("../db/s3");
+
+const GYM_BUCKET = process.env.AWS_S3_GYM_BUCKET;
+const PITCHING_BUCKET = process.env.AWS_S3_PITCHING_BUCKET;
+
+function sanitizeFilename(name) {
+  if (typeof name !== "string") return "file";
+
+  return name
+    .trim()
+    .replace(/\s+/g, "_")           
+    .replace(/[^a-zA-Z0-9._-]/g, "");  
+}
+
+router.get("/", async (req, res) => {
+  try {
+    const db = await getDb();
+    const sessionsCollection = db.collection("sessions");
+    const clerkUserId = req.auth.userId;
+
+    const results = await sessionsCollection
+      .find({ userId: clerkUserId })
+      .sort({ date: -1 })
+      .toArray();
+
+    const sessionsWithSignedUrls = await Promise.all(
+      results.map(async (s) => {
+        const session = { ...s };
+
+        if (session.kind === "gym" && Array.isArray(session.exercises)) {
+          session.exercises = await Promise.all(
+            session.exercises.map(async (ex) => {
+              const exCopy = { ...ex };
+
+              if (exCopy.videoKey) {
+                const signed = await getSignedUrlForKey(GYM_BUCKET, exCopy.videoKey);
+                exCopy.video = signed; 
+              }
+
+              return exCopy;
+            })
+          );
+        }
+
+
+        if (session.kind === "baseball" && session.pitches && typeof session.pitches === "object") {
+          const pitchesCopy = { ...session.pitches };
+          const pitchTypes = Object.keys(pitchesCopy);
+
+          await Promise.all(
+            pitchTypes.map(async (pitchType) => {
+              const data = pitchesCopy[pitchType] || {};
+              const keys = Array.isArray(data.videoKeys) ? data.videoKeys : [];
+
+              const urls = await Promise.all(
+                keys.map((key) => getSignedUrlForKey(PITCHING_BUCKET, key))
+              );
+
+              pitchesCopy[pitchType] = {
+                ...data,
+                videoUrls: urls, 
+              };
+            })
+          );
+
+          session.pitches = pitchesCopy;
+        }
+
+        return session;
+      })
+    );
+
+    res.json({ sessions: sessionsWithSignedUrls });
+  } catch (err) {
+    console.error("Error fetching sessions:", err);
+    res.status(500).json({ error: "Failed to fetch sessions" });
+  }
+});
+
+
+router.post("/", upload.any(), async (req, res) => {
+  try {
+    const db = await getDb();
+    const sessions = db.collection("sessions");
+    const usersCollection = db.collection("users");
+
+    const clerkUserId = req.auth.userId;
+
+    await usersCollection.updateOne(
+      { _id: clerkUserId },
+      {
+        $setOnInsert: { role: "player", createdAt: new Date() },
+        $set: { updatedAt: new Date() },
+      },
+      { upsert: true }
+    );
+
+    const { kind, date, sessionType, timeSpent } = req.body;
+    let doc = {
+      userId: clerkUserId,
+      kind,
+      date: date ? new Date(date) : new Date(),
+      sessionType,
+      timeSpent,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+
+    if (kind === "gym") {
+      const exercises = JSON.parse(req.body.exercises || "[]");
+      doc.exercises = exercises;
+
+      const uploadPromises = req.files
+        .filter((file) => file.fieldname.startsWith("exerciseVideo_"))
+        .map(async (file) => {
+
+          const parts = file.fieldname.split("_");
+          const indexStr = parts[1];
+          const exIndex = parseInt(indexStr, 10);
+
+          const safeName = sanitizeFilename(file.originalname);
+          const key = `${clerkUserId}/gym-sessions/${Date.now()}-${exIndex}-${safeName}`;
+
+
+          const s3Key = await uploadToS3({
+            bucket: GYM_BUCKET,
+            key,
+            contentType: file.mimetype,
+            body: file.buffer,
+          });
+
+          return {
+            exIndex: Number.isNaN(exIndex) ? null : exIndex,
+            s3Key,
+          };
+        });
+
+      const uploaded = await Promise.all(uploadPromises);
+
+      uploaded.forEach(({ exIndex, s3Key }) => {
+        if (exIndex == null) return;
+        if (!doc.exercises[exIndex]) return;
+
+
+        doc.exercises[exIndex].videoKey = s3Key;
+      });
+    }
+
+
+    if (kind === "baseball") {
+      const pitchData = JSON.parse(req.body.pitchData || "{}");
+      doc.totalPitches = parseInt(req.body.totalPitches || "0", 10);
+
+
+      doc.pitches = {};
+
+      Object.entries(pitchData).forEach(([pitchType, data]) => {
+        doc.pitches[pitchType] = {
+          count: data.count ?? "",
+          accuracy: data.accuracy ?? "",
+          maxSpeed: data.maxSpeed ?? "",
+          videoKeys: [],  
+        };
+      });
+
+      const uploadPromises = req.files
+        .filter((file) => file.fieldname.startsWith("pitchVideo_"))
+        .map(async (file) => {
+
+          const parts = file.fieldname.split("_");
+          const pitchType = parts[1];
+
+          const safeName = sanitizeFilename(file.originalname);
+          const key = `${clerkUserId}/pitching-sessions/${pitchType}/${Date.now()}-${safeName}`;
+
+          const s3Key = await uploadToS3({
+            bucket: PITCHING_BUCKET,
+            key,
+            contentType: file.mimetype,
+            body: file.buffer,
+          });
+
+          return { pitchType, s3Key };
+        });
+
+      const uploaded = await Promise.all(uploadPromises);
+
+      uploaded.forEach(({ pitchType, s3Key }) => {
+        if (!doc.pitches[pitchType]) {
+          doc.pitches[pitchType] = {
+            count: "",
+            accuracy: "",
+            maxSpeed: "",
+            videoKeys: [],
+          };
+        }
+        doc.pitches[pitchType].videoKeys.push(s3Key);
+      });
+    }
+    const {
+      indexPitchingSession,
+      indexGymSession,
+    } = require("../services/pineconeIndexer");
+    
+
+    const result = await sessions.insertOne(doc);
+    
+    try {
+      const fullDoc = { _id: result.insertedId, ...doc };
+      if (kind === "gym") {
+        indexGymSession(fullDoc);
+      } else if (kind === "baseball") {
+        indexPitchingSession(fullDoc);
+      }
+    } catch (err) {
+      console.error("Error indexing session in Pinecone:", err);
+    }
+    
+    res.json({
+      success: true,
+      sessionId: result.insertedId,
+      session: doc,
+    });
+  } catch (err) {
+    console.error("Error creating session:", err);
+    res.status(500).json({ error: "Failed to create session" });
+  }
+});
+
+module.exports = router;
