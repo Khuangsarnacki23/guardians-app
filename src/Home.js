@@ -15,9 +15,11 @@ import { faClipboard } from "@fortawesome/free-regular-svg-icons";
 const API_PORT = 5001;
 const devHost = window.location.hostname === "localhost";
 
+const FALLBACK_DEV_API = "http://localhost:5001";
+
 export const API_BASE_URL =
   process.env.NODE_ENV === "development"
-    ? `http://${devHost}:${API_PORT}`
+    ? process.env.REACT_APP_API_BASE_URL || FALLBACK_DEV_API
     : "https://guardians-app-production.up.railway.app";
 
 function Home({setOverlayVisible}) {

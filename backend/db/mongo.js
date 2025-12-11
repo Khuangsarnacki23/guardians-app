@@ -1,28 +1,44 @@
 // db/mongo.js
+require("dotenv").config();
 const { MongoClient, ServerApiVersion } = require("mongodb");
-const uri = "mongodb+srv://khuangsarnacki_db_user:MxFGjFVQXHtYHjsS@cluster0.evaduzv.mongodb.net/?appName=Cluster0";
+
+const uri = process.env.MONGODB_URI;  
+if (!uri) {
+  console.error("❌ ERROR: MONGO_URI is missing in /backend/.env");
+  console.error("You MUST have: MONGO_URI=<your-atlas-url>");
+  process.exit(1);
+}
+
 const client = new MongoClient(uri, {
   serverApi: {
     version: ServerApiVersion.v1,
     strict: true,
     deprecationErrors: true,
-  }
+  },
 });
 
 const DB_NAME = "database1";
-let db;
+let db = null;
 
 async function connectToMongo() {
-  if (db) return db;
-  console.log(client);
-  await client.connect();
-  db = client.db(DB_NAME);
-  console.log("🔥 Connected to MongoDB Atlas:", DB_NAME);
-  return db;
+  try {
+    if (db) return db;
+
+    console.log("⏳ Connecting to MongoDB Atlas...");
+    await client.connect();
+
+    db = client.db(DB_NAME);
+
+    console.log(`🔥 Connected to MongoDB Atlas → DB: ${DB_NAME}`);
+    return db;
+  } catch (err) {
+    console.error("❌ MongoDB Connection Error:");
+    console.error(err);
+    throw err; // important: this makes your route catch it
+  }
 }
 
 async function getDb() {
-  // simple helper so routes can call getDb()
   if (!db) {
     await connectToMongo();
   }
@@ -31,5 +47,5 @@ async function getDb() {
 
 module.exports = {
   connectToMongo,
-  getDb
+  getDb,
 };
