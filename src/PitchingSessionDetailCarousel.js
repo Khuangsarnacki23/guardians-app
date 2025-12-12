@@ -421,7 +421,7 @@ export default function PitchingSessionDetailCarousel({
   };
 
   const effectiveActive = active + dragDelta;
-
+  
   return (
     <div className="session-detail">
       <button className="back-button" onClick={onBack}>

@@ -76,10 +76,9 @@ async function indexPitchGoals(userId, pitchGoals = []) {
 
   const index = getPineconeIndex();
   const namespace = userId;
-
   const vectors = [];
   for (const goal of pitchGoals) {
-    const id = `pitch_goal:${goal._id || goal.pitchKey || goal.name}`;
+    const id = `pitch_goal:${goal._id || goal.name}`;
     const text = buildPitchGoalSummary(goal);
 
     const vector = await safeEmbed(text);
@@ -92,7 +91,6 @@ async function indexPitchGoals(userId, pitchGoals = []) {
         type: "goal",
         kind: "baseball",
         userId,
-        pitchKey: goal.pitchKey || null,
         fastestSpeed: goal.fastestSpeed ?? null,
         accuracy: goal.accuracy ?? null,
         name: goal.name || null,

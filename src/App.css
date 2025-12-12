@@ -149,6 +149,7 @@ ease;
   z-index: 0;
   pointer-events: none;       /* video not clickable */
 
+
 }
 
 /* Dark overlay to control opacity+focus */
@@ -225,4 +226,63 @@ ease;
   .auth-hero-title {
     font-size: 2rem;
   }
+}
+.black-select {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+
+  width: 50%;
+  padding: 5px 35px 5px 14px;
+
+  background-color: #262636;
+  color: #e5e7eb;
+
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+
+  font-size: 14px;
+  font-weight: 500;
+
+  background-image:
+    linear-gradient(45deg, transparent 50%, #9ca3af 50%),
+    linear-gradient(135deg, #9ca3af 50%, transparent 50%);
+  background-position:
+    calc(100% - 18px) 50%,
+    calc(100% - 12px) 50%;
+  background-size: 6px 6px;
+  background-repeat: no-repeat;
+
+  cursor: pointer;
+
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    background-color 0.2s ease;
+}
+
+/* Hover */
+.black-select:hover {
+  border-color: rgba(255, 255, 255, 0.18);
+  background-color: #0e131a;
+}
+
+/* Focus */
+.black-select:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.35);
+  background-color: #0e131a;
+}
+
+/* Disabled */
+.black-select:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* Dropdown options (limited support but helps) */
+.black-select option {
+  background-color: #0b0f14;
+  color: #e5e7eb;
 }

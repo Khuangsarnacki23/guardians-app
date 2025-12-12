@@ -26,10 +26,81 @@ function GymDashboard({ sessions, uploadSessionToApi, apiBaseUrl, setOverlayVisi
   const [timeSpent, setTimeSpent] = useState("");
   const [goals, setGoals] = useState([]);
   const [gymExercises, setGymExercises] = useState([]);
+  const [goalScope, setGoalScope] = useState("lifetime");
+  const [goalDate, setGoalDate] = useState(null);
+  const [showGoalDatePicker, setShowGoalDatePicker] = useState(false);
+  const [tempGoalDate, setTempGoalDate] = useState(null);
+  const [ringGoalSelection, setRingGoalSelection] = useState("lifetime");
+
 
   function delay(ms) {
     return new Promise((resolve) => setTimeout(resolve, ms));
   }
+
+  const toNum = (v) => {
+    const n = Number(v);
+    return Number.isFinite(n) ? n : 0;
+  };
+
+  const {
+  totalMinutesGoal,
+  totalSetsGoal,
+  totalRepsGoal,
+  gymDatedGoals,
+  selectedGymExerciseGoals,
+} = useMemo(() => {
+  if (!Array.isArray(goals)) {
+    return {
+      totalMinutesGoal: 0,
+      totalSetsGoal: 0,
+      totalRepsGoal: 0,
+      gymDatedGoals: [],
+      selectedGymExerciseGoals: [],
+    };
+  }
+
+  // Only gym goals
+  const gymGoals = goals.filter((g) => g.type === "gym");
+
+  const lifetimeGoals = gymGoals.filter((g) => g.scope === "lifetime");
+  const datedGoals = gymGoals.filter(
+    (g) => g.scope === "dated" && g.targetDate
+  );
+
+  // Most recent lifetime goal (by createdAt)
+  const latestLifetime = lifetimeGoals.length
+    ? [...lifetimeGoals].sort(
+        (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
+      )[0]
+    : null;
+
+  let selectedGoal = null;
+
+  if (ringGoalSelection === "lifetime") {
+    // ONLY the latest lifetime goal (or null if none)
+    selectedGoal = latestLifetime;
+  } else if (ringGoalSelection) {
+    // Specific dated goal by _id
+    selectedGoal =
+      datedGoals.find(
+        (g) => String(g._id) === String(ringGoalSelection)
+      ) || null;
+  }
+
+  const totals = selectedGoal?.totals || {};
+  const selectedExerciseGoals = Array.isArray(selectedGoal?.exerciseGoals)
+    ? selectedGoal.exerciseGoals
+    : [];
+
+  return {
+    totalMinutesGoal: toNum(totals.minutes),
+    totalSetsGoal: toNum(totals.sets),
+    totalRepsGoal: toNum(totals.reps),
+    gymDatedGoals: datedGoals,
+    // 👇 this is the important line
+    selectedGymExerciseGoals: selectedExerciseGoals,
+  };
+}, [goals, ringGoalSelection]);
 
   const getTotalGymVideos = (exercises) =>
     exercises.filter((ex) => ex.video).length;
@@ -124,29 +195,11 @@ function GymDashboard({ sessions, uploadSessionToApi, apiBaseUrl, setOverlayVisi
   
   
 
-  const toNum = (v) => {
-    const n = Number(v);
-    return Number.isFinite(n) ? n : 0;
-  };
+
   
-  const totalMinutesGoal = Array.isArray(goals)
-  ? goals
-      .filter((g) => g.type === "gym")
-      .reduce(
-        (sum, g) => sum + toNum(g.totals?.minutes),
-        0
-      )
-  : 0;
 
-
-  const totalSetsGoal = Array.isArray(goals)
-  ? goals
-      .filter((g) => g.type === "gym")
-      .reduce(
-        (sum, g) => sum + toNum(g.totals?.sets),
-        0
-      )
-  : 0;
+  
+  
 
   const actualSetsReps = sessions
   .filter(s => s.kind === "gym")
@@ -157,8 +210,6 @@ function GymDashboard({ sessions, uploadSessionToApi, apiBaseUrl, setOverlayVisi
   totalSetsGoal > 0
   ? Math.min(100, (actualSetsReps / totalSetsGoal) * 100)
   : 0;
-
-    const totalRepsGoal = Array.isArray(goals) ? goals .filter((g) => g.type === "gym") .reduce( (sum, g) => sum + toNum(g.totals?.reps), 0 ) : 0;
 
   const actualReps = sessions
   .filter((s) => s.kind === "gym")
@@ -258,14 +309,141 @@ function GymDashboard({ sessions, uploadSessionToApi, apiBaseUrl, setOverlayVisi
     return flattened;
   }, [goals]);
 
-  
-  
+const isSameDay = (d1, d2) => {
+  return (
+    d1.getFullYear() === d2.getFullYear() &&
+    d1.getMonth() === d2.getMonth() &&
+    d1.getDate() === d2.getDate()
+  );
+};
+
+const hydrateFromGoalDoc = (goalDoc) => {
+  if (!goalDoc) return;
+
+  const totals = goalDoc.totals || {};
+
+  setTotalMinutesTarget(
+    totals.minutes !== undefined ? String(totals.minutes) : ""
+  );
+  setTotalRepsTarget(
+    totals.reps !== undefined ? String(totals.reps) : ""
+  );
+  setTotalSetsTarget(
+    totals.sets !== undefined ? String(totals.sets) : ""
+  );
+
+  const exGoals = Array.isArray(goalDoc.exerciseGoals)
+    ? goalDoc.exerciseGoals.map((g) => ({
+        name: g.name || "",
+        minutes: g.minutes !== undefined ? String(g.minutes) : "",
+        reps: g.reps !== undefined ? String(g.reps) : "",
+        max: g.max || "",
+        expanded: false,
+      }))
+    : [];
+
+  setExerciseGoals(exGoals);
+};
+
+const hydrateFromLifetimeGoal = (allGoals) => {
+  if (!Array.isArray(allGoals)) return;
+
+  const gymLifetimeGoals = allGoals.filter(
+    (g) => g.type === "gym" && g.scope === "lifetime"
+  );
+
+  if (!gymLifetimeGoals.length) {
+    // Nothing saved yet → clear form
+    setTotalMinutesTarget("");
+    setTotalRepsTarget("");
+    setTotalSetsTarget("");
+    setExerciseGoals([]);
+    setGoalDate(null);
+    return;
+  }
+
+  // Use latest by createdAt (or updatedAt if you prefer)
+  const latest = [...gymLifetimeGoals].sort(
+    (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
+  )[0];
+
+  const totals = latest.totals || {};
+
+  setTotalMinutesTarget(
+    totals.minutes !== undefined ? String(totals.minutes) : ""
+  );
+  setTotalRepsTarget(
+    totals.reps !== undefined ? String(totals.reps) : ""
+  );
+  setTotalSetsTarget(
+    totals.sets !== undefined ? String(totals.sets) : ""
+  );
+
+  const exGoals = Array.isArray(latest.exerciseGoals)
+    ? latest.exerciseGoals.map((g) => ({
+        name: g.name || "",
+        minutes: g.minutes !== undefined ? String(g.minutes) : "",
+        reps: g.reps !== undefined ? String(g.reps) : "",
+        max: g.max || "",
+        expanded: false,
+      }))
+    : [];
+
+  setExerciseGoals(exGoals);
+  setGoalDate(null);
+};
+const handleGoalScopeChange = (value) => {
+  setGoalScope(value);
+
+  if (value === "lifetime") {
+    hydrateFromLifetimeGoal(goals);
+  }
+  else{
+    setTotalMinutesTarget("");
+    setTotalRepsTarget("");
+    setTotalSetsTarget("");
+    setExerciseGoals([]);
+    setGoalDate(null);
+  }
+
+  // if "dated", we just leave fields as-is and let user set them
+};
+useEffect(() => {
+  if (goalScope !== "dated" || !goalDate || !Array.isArray(goals)) return;
+
+  const datedGymGoals = goals.filter(
+    (g) => g.type === "gym" && g.scope === "dated" && g.targetDate
+  );
+
+  if (!datedGymGoals.length) return;
+
+  const matching = datedGymGoals.filter((g) => {
+    const target = new Date(g.targetDate);
+    return isSameDay(target, goalDate);
+  });
+
+  if (!matching.length) {
+    return;
+  }
+
+  const latest = [...matching].sort(
+    (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
+  )[0];
+
+  hydrateFromGoalDoc(latest);
+}, [goalScope, goalDate, goals]);
+
   const handleGoalSubmit = async (e, close) => {
   e.preventDefault();
   setOverlayVisible(true);
   await delay(1000);
   const payload = {
     type: "gym",
+    scope: goalScope, 
+    targetDate:
+      goalScope === "dated" && goalDate
+        ? goalDate.toISOString()
+        : null,
     totals: {
       minutes: totalMinutesTarget,
       reps: totalRepsTarget,
@@ -303,7 +481,11 @@ function GymDashboard({ sessions, uploadSessionToApi, apiBaseUrl, setOverlayVisi
   }
 };
 
-  
+useEffect(() => {
+  if (goalScope === "lifetime") {
+    hydrateFromLifetimeGoal(goals);
+  }
+}, [goals, goalScope]);
   
   const handleRecordSessionSubmit = async (e, close) => {
     e.preventDefault();
@@ -332,9 +514,11 @@ function GymDashboard({ sessions, uploadSessionToApi, apiBaseUrl, setOverlayVisi
   };
 
   const hasGymGoals =
-  Array.isArray(gymExerciseGoals) && gymExerciseGoals.length > 0;
+  Array.isArray(selectedGymExerciseGoals) &&
+  selectedGymExerciseGoals.length > 0;
 
-const maxIndex = hasGymGoals ? gymExerciseGoals.length : 0; 
+const maxIndex = hasGymGoals ? selectedGymExerciseGoals.length : 0;
+
 
 let ringContent = null;
 
@@ -349,7 +533,7 @@ if (activeRingIndex === 0 || !hasGymGoals) {
   );
 } else {
   const goalIdx = activeRingIndex - 1;
-  const goal = gymExerciseGoals[goalIdx];
+  const goal = selectedGymExerciseGoals[goalIdx];
 
   if (goal) {
     ringContent = (
@@ -368,7 +552,7 @@ if (selectedSession) {
     <GymSessionDetailCarousel
       session={selectedSession}
       allSessions = {sessions}
-      goals = {gymExerciseGoals}
+      goals = {goals}
       onBack={() => setSelectedSession(null)}
     />
     </FullScreenLayout>
@@ -383,33 +567,58 @@ if (selectedSession) {
         Explore suggested gym sessions based on your goals.
       </p>
       <section className="home-section">
-{(
-    <div className="single-goal-ring-wrapper">
-      <div className="goal-ring-nav">
+  {/* Goal selection for the totals ring */}
+  <div className="goals-row" style={{ marginBottom: 8 }}>
+    <label className="goals-label" style={{ marginRight: 8 }}>
+      Totals vs goal
+    </label>
+    <select
+      className="goals-input"
+      style={{ maxWidth: 260 }}
+      value={ringGoalSelection}
+      onChange={(e) => setRingGoalSelection(e.target.value)}
+    >
+      <option value="lifetime">Lifetime goal</option>
+      {gymDatedGoals.map((g) => (
+        <option key={g._id} value={String(g._id)}>
+          {g.targetDate
+  ? `By ${new Date(g.targetDate).toLocaleDateString(undefined, {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    })}`
+  : "Dated goal"}
+        </option>
+      ))}
+    </select>
+  </div>
+
+  {/* --- Single Goal Ring with navigation --- */}
+  <div className="single-goal-ring-wrapper">
+    <div className="goal-ring-nav">
       <button
-      type="button"
-      className="mode-chip"
-      onClick={handlePrev}
-    >
-      ◀
-    </button>
+        type="button"
+        className="mode-chip"
+        onClick={handlePrev}
+      >
+        ◀
+      </button>
 
-<div className="goal-ring-card">
-  {ringContent}
-    </div>
-
-    <button
-      type="button"
-      className="mode-chip"
-      onClick={handleNext}
-    >
-      ▶
-    </button>
+      <div className="goal-ring-card">
+        {ringContent}
       </div>
-    </div>
-  )}
 
+      <button
+        type="button"
+        className="mode-chip"
+        onClick={handleNext}
+      >
+        ▶
+      </button>
+    </div>
+  </div>
 </section>
+
       <div className="flexMenu">
         <Menu
           title="Set Gym Goals"
@@ -425,35 +634,131 @@ if (selectedSession) {
           )}
           renderContent={({ close }) => (
             <form onSubmit={(e) => handleGoalSubmit(e, close)}>
-<div className="goals-row">
-  <label className="goals-label">Total Minutes</label>
-  <input
-    type="text"
-    className="goals-input"
-    value={totalMinutesTarget}
-    onChange={(e) => setTotalMinutesTarget(e.target.value)}
-  />
-</div>
+    {/* Goal timeframe selector */}
+    <div className="goals-row">
+      <label className="goals-label">Goal timeframe</label>
+      <select
+        className="goals-input"
+        value={goalScope}
+        onChange={(e) => handleGoalScopeChange(e.target.value)}
+      >
+        <option value="lifetime">Lifetime goal</option>
+        <option value="dated">Target by date</option>
+      </select>
+    </div>
+    {goalScope === "dated" && (
+      <div className="goals-row">
+        <label className="goals-label">Target date</label>
+        <div style={{ display: "flex", gap: "8px" }}>
+          <div className="goals-input" style={{ flex: 1 }}>
+            {goalDate
+              ? goalDate.toLocaleDateString()
+              : "No date selected"}
+          </div>
+          <button
+            type="button"
+            className="button-31"
+            style={{ flexShrink: 0, width: "40%", padding: "3px" }}
+            onClick={() => {
+              setTempGoalDate(goalDate || new Date());
+              setShowGoalDatePicker(true);
+            }}
+          >
+            <FontAwesomeIcon icon={faCalendar} />
+            {goalDate ? "Change Date" : "Add Date"}
+          </button>
+        </div>
 
-<div className="goals-row">
-  <label className="goals-label">Total Reps</label>
-  <input
-    type="text"
-    className="goals-input"
-    value={totalRepsTarget}
-    onChange={(e) => setTotalRepsTarget(e.target.value)}
-  />
-</div>
+        {showGoalDatePicker && (
+          <div
+            className="menu-overlay"
+            onClick={() => setShowGoalDatePicker(false)}
+          >
+            <div
+              className="menu-popover"
+              style={{ maxWidth: 400 }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="menu-header">
+                <span className="menu-title">Pick a target date</span>
+                <button
+                  type="button"
+                  className="menu-close-btn"
+                  onClick={() => setShowGoalDatePicker(false)}
+                >
+                  ×
+                </button>
+              </div>
 
-<div className="goals-row">
-  <label className="goals-label">Total Sets</label>
-  <input
-    type="text"
-    className="goals-input"
-    value={totalSetsTarget}
-    onChange={(e) => setTotalSetsTarget(e.target.value)}
-  />
-</div>
+              <MyDatePicker
+                value={tempGoalDate}
+                onChange={(day) => {
+                  if (!day) return;
+                  setTempGoalDate(day);
+                }}
+              />
+
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "flex-end",
+                  gap: "8px",
+                  marginTop: "12px",
+                }}
+              >
+                <button
+                  type="button"
+                  className="button-31"
+                  style={{ backgroundColor: "#374151" }}
+                  onClick={() => setShowGoalDatePicker(false)}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="button-31"
+                  onClick={() => {
+                    setGoalDate(tempGoalDate);
+                    setShowGoalDatePicker(false);
+                  }}
+                >
+                  Save Date
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    )}
+    <div className="goals-row">
+      <label className="goals-label">Total Minutes</label>
+      <input
+        type="text"
+        className="goals-input"
+        value={totalMinutesTarget}
+        onChange={(e) => setTotalMinutesTarget(e.target.value)}
+      />
+    </div>
+
+    <div className="goals-row">
+      <label className="goals-label">Total Reps</label>
+      <input
+        type="text"
+        className="goals-input"
+        value={totalRepsTarget}
+        onChange={(e) => setTotalRepsTarget(e.target.value)}
+      />
+    </div>
+
+    <div className="goals-row">
+      <label className="goals-label">Total Sets</label>
+      <input
+        type="text"
+        className="goals-input"
+        value={totalSetsTarget}
+        onChange={(e) => setTotalSetsTarget(e.target.value)}
+      />
+    </div>
 
 <>
   {exerciseGoals.length === 0 ? (
