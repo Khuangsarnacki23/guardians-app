@@ -58,7 +58,6 @@ function GymDashboard({ sessions, uploadSessionToApi, apiBaseUrl, setOverlayVisi
       selectedGymExerciseGoals: [],
     };
   }
-
   // Only gym goals
   const gymGoals = goals.filter((g) => g.type === "gym");
 
@@ -101,6 +100,10 @@ function GymDashboard({ sessions, uploadSessionToApi, apiBaseUrl, setOverlayVisi
     selectedGymExerciseGoals: selectedExerciseGoals,
   };
 }, [goals, ringGoalSelection]);
+
+const handleSessionClick = (session) => {
+  setSelectedSession(session);
+};
 
   const getTotalGymVideos = (exercises) =>
     exercises.filter((ex) => ex.video).length;
@@ -553,7 +556,7 @@ if (selectedSession) {
       session={selectedSession}
       allSessions = {sessions}
       goals = {goals}
-      onBack={() => setSelectedSession(null)}
+      onBack={() => handleSessionClick(null)}
     />
     </FullScreenLayout>
   );
@@ -569,11 +572,8 @@ if (selectedSession) {
       <section className="home-section">
   {/* Goal selection for the totals ring */}
   <div className="goals-row" style={{ marginBottom: 8 }}>
-    <label className="goals-label" style={{ marginRight: 8 }}>
-      Totals vs goal
-    </label>
     <select
-      className="goals-input"
+      className="goals-input black-select"
       style={{ maxWidth: 260 }}
       value={ringGoalSelection}
       onChange={(e) => setRingGoalSelection(e.target.value)}
@@ -1196,11 +1196,11 @@ if (selectedSession) {
             s.exercises?.reduce((sum, ex) => sum + (ex.sets || 0), 0) || 0;
 
           return (
-            <article key={s._id} className="session-card" onClick={() => setSelectedSession(s)}
+            <article key={s._id} className="session-card" onClick={() => handleSessionClick(s)}
             role="button"
             tabIndex={0}
             onKeyDown={(e) => {
-              if (e.key === "Enter" || e.key === " ") setSelectedSession(s);
+              if (e.key === "Enter" || e.key === " ") handleSessionClick(s);
             }}>
               <div className="session-card-info">
                 <h4 className="session-title">Gym Session — {dateStr}</h4>

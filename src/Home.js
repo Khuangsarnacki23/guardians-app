@@ -1,7 +1,7 @@
 // Home.js
 import "./Home.css";
 import "./App.css";
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useUser, useAuth, UserButton } from "@clerk/clerk-react";
 import GymDashboard from "./GymDashboard";
 import PitchingDashboard from "./PitchingDashboard";
@@ -28,7 +28,6 @@ function Home({setOverlayVisible}) {
   const { getToken } = useAuth();
   const navigate = useNavigate();
   const [showAssistant, setShowAssistant] = useState(false);
-
   const handleAssistantClick = () => {
     const hasCompleted =
       localStorage.getItem("mlbCoachOnboardingComplete") === "true";
