@@ -78,6 +78,13 @@ function formatLabelByRange(date, rangeKey) {
       return date.toLocaleDateString(undefined, { year: "numeric" });
   }
 }
+const shouldIgnoreSwipeStart = (e) => {
+  const el = e.target;
+  if (!el?.closest) return false;
+
+  // ignore touches that start on UI controls (your range buttons live here)
+  return !!el.closest("button, a, input, select, textarea, .chart-range-toggle");
+};
 
 function filterDatasetByRange(dataset, rangeKey) {
   if (!dataset || dataset.length === 0) return [];
@@ -358,6 +365,7 @@ export default function PitchingSessionDetailCarousel({
   };
 
   const handlePointerDown = (e) => {
+    if (shouldIgnoreSwipeStart(e)) return; 
     const x = getClientX(e);
     const y = getClientY(e);
     setDragStartX(x);

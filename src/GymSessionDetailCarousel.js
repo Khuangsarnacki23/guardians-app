@@ -745,7 +745,7 @@ export default function GymSessionDetailCarousel({
                   </div>
 
                   {maxChartData && (
-                    <div className="exercise-chart large-chart">
+                    <div className="exercise-chart large-chart" >
                       <Line
                         data={{
                           labels: maxChartData.labels,
@@ -788,7 +788,7 @@ export default function GymSessionDetailCarousel({
                   </div>
 
                   {minutesChartData && (
-                    <div className="exercise-chart medium-chart">
+                    <div className="exercise-chart medium-chart" style = {{height:"160.9px"}}>
                       <Line
                         data={{
                           labels: minutesChartData.labels,

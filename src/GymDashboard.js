@@ -1017,7 +1017,6 @@ if (selectedSession) {
                     </div>
 
                     {gymExercises.map((ex, index) => {
-                      const totalVideos = getTotalGymVideos(gymExercises);
                       const title = ex.name || `Exercise ${index + 1}`;
 
                       if (!ex.expanded) {
