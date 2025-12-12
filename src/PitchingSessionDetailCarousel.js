@@ -580,7 +580,7 @@ export default function PitchingSessionDetailCarousel({
                   </div>
 
                   {accuracyChartData && (
-                    <div className="exercise-chart medium-chart">
+                    <div className="exercise-chart medium-chart" style = {{height:"160.9px"}}>
                       <Line
                             data={{
                                 labels: accuracyChartData.labels,
