@@ -306,10 +306,7 @@
   
   /* Footer: progress + centered button */
   .onboarding-footer {
-    position: sticky;
-    bottom: 0;
-    /* key part: lift it above the iOS bottom UI/home indicator */
-    padding-bottom: calc(1rem + env(safe-area-inset-bottom));
+    padding: 0.75rem 1.5rem calc(2.25rem + env(safe-area-inset-bottom));
     padding: 0.75rem 1.5rem 1rem;
     border-top: 1px solid rgba(148, 163, 184, 0.35);
     display: flex;
