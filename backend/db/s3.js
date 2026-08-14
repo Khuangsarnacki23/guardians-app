@@ -10,6 +10,11 @@ const REGION = process.env.AWS_REGION || "us-east-2";
 
 const s3 = new S3Client({
   region: REGION,
+  // AWS SDK v3.729+ enables flexible checksums by default, which bakes an
+  // x-amz-checksum-crc32 for an EMPTY body into presigned PUT URLs. The browser
+  // then uploads real bytes, S3 computes a different CRC32, and rejects the
+  // request. "WHEN_REQUIRED" keeps checksums off unless an API demands them.
+  requestChecksumCalculation: "WHEN_REQUIRED",
 });
 
 /**
