@@ -12,7 +12,11 @@ const s3 = new S3Client({
   region: REGION,
 });
 
-
+/**
+ * Server-side upload. Still used for small payloads (e.g. coach docs), but NOT
+ * for videos -- on Vercel the request body cap is 4.5MB, so large files must go
+ * straight from the browser to S3 via getPresignedUploadUrl below.
+ */
 async function uploadToS3({ bucket, key, contentType, body }) {
   const command = new PutObjectCommand({
     Bucket: bucket,
@@ -24,6 +28,32 @@ async function uploadToS3({ bucket, key, contentType, body }) {
   await s3.send(command);
 
   return key;
+}
+
+/**
+ * Presigned PUT URL. The browser uploads directly to S3 with this, so the file
+ * bytes never pass through the serverless function and the 4.5MB limit does not
+ * apply. Requires a CORS policy on the bucket allowing PUT from the app origin.
+ */
+async function getPresignedUploadUrl({
+  bucket,
+  key,
+  contentType,
+  expiresIn = 900,
+}) {
+  if (!bucket || !key) {
+    throw new Error("bucket and key are required to sign an upload");
+  }
+
+  const command = new PutObjectCommand({
+    Bucket: bucket,
+    Key: key,
+    ContentType: contentType,
+  });
+
+  const url = await getSignedUrl(s3, command, { expiresIn });
+
+  return { url, key };
 }
 
 async function getSignedUrlForKey(bucket, key, expiresIn = 3600) {
@@ -43,5 +73,6 @@ async function getSignedUrlForKey(bucket, key, expiresIn = 3600) {
 
 module.exports = {
   uploadToS3,
+  getPresignedUploadUrl,
   getSignedUrlForKey,
 };

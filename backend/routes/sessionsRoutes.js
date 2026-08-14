@@ -1,26 +1,20 @@
 // routes/sessionsRoutes.js
 const express = require("express");
 const router = express.Router();
-const multer = require("multer");
-const upload = multer({
-  storage: multer.memoryStorage(),
-  limits: {
-    fileSize: 50 * 1024 * 1024, 
-  },
-});
 const { getDb } = require("../db/mongo");
-const { uploadToS3, getSignedUrlForKey } = require("../db/s3");
+const { getSignedUrlForKey } = require("../db/s3");
 
 const GYM_BUCKET = process.env.AWS_S3_GYM_BUCKET;
 const PITCHING_BUCKET = process.env.AWS_S3_PITCHING_BUCKET;
 
-function sanitizeFilename(name) {
-  if (typeof name !== "string") return "file";
-
-  return name
-    .trim()
-    .replace(/\s+/g, "_")           
-    .replace(/[^a-zA-Z0-9._-]/g, "");  
+/**
+ * Videos are uploaded straight to S3 by the browser via POST /api/uploads/sign,
+ * so this route receives only the resulting object keys as JSON. Keys must live
+ * under the caller's own prefix -- otherwise a user could attach someone else's
+ * video to their session just by guessing a key.
+ */
+function ownsKey(key, clerkUserId) {
+  return typeof key === "string" && key.startsWith(`${clerkUserId}/`);
 }
 
 router.get("/", async (req, res) => {
@@ -89,7 +83,7 @@ router.get("/", async (req, res) => {
 });
 
 
-router.post("/", upload.any(), async (req, res) => {
+router.post("/", async (req, res) => {
   try {
     const db = await getDb();
     const sessions = db.collection("sessions");
@@ -119,94 +113,41 @@ router.post("/", upload.any(), async (req, res) => {
 
 
     if (kind === "gym") {
-      const exercises = JSON.parse(req.body.exercises || "[]");
-      doc.exercises = exercises;
+      const exercises = Array.isArray(req.body.exercises)
+        ? req.body.exercises
+        : [];
 
-      const uploadPromises = req.files
-        .filter((file) => file.fieldname.startsWith("exerciseVideo_"))
-        .map(async (file) => {
+      // Strip any client-supplied key that isn't in this user's own prefix.
+      doc.exercises = exercises.map((ex) => {
+        const exCopy = { ...ex };
+        delete exCopy.video; // transient browser-side File reference
 
-          const parts = file.fieldname.split("_");
-          const indexStr = parts[1];
-          const exIndex = parseInt(indexStr, 10);
+        if (exCopy.videoKey && !ownsKey(exCopy.videoKey, clerkUserId)) {
+          delete exCopy.videoKey;
+        }
 
-          const safeName = sanitizeFilename(file.originalname);
-          const key = `${clerkUserId}/gym-sessions/${Date.now()}-${exIndex}-${safeName}`;
-
-
-          const s3Key = await uploadToS3({
-            bucket: GYM_BUCKET,
-            key,
-            contentType: file.mimetype,
-            body: file.buffer,
-          });
-
-          return {
-            exIndex: Number.isNaN(exIndex) ? null : exIndex,
-            s3Key,
-          };
-        });
-
-      const uploaded = await Promise.all(uploadPromises);
-
-      uploaded.forEach(({ exIndex, s3Key }) => {
-        if (exIndex == null) return;
-        if (!doc.exercises[exIndex]) return;
-
-
-        doc.exercises[exIndex].videoKey = s3Key;
+        return exCopy;
       });
     }
 
-
     if (kind === "baseball") {
-      const pitchData = JSON.parse(req.body.pitchData || "{}");
-      doc.totalPitches = parseInt(req.body.totalPitches || "0", 10);
+      const pitchData =
+        req.body.pitchData && typeof req.body.pitchData === "object"
+          ? req.body.pitchData
+          : {};
 
-
+      doc.totalPitches = parseInt(req.body.totalPitches || "0", 10) || 0;
       doc.pitches = {};
 
       Object.entries(pitchData).forEach(([pitchType, data]) => {
+        const keys = Array.isArray(data.videoKeys) ? data.videoKeys : [];
+
         doc.pitches[pitchType] = {
           count: data.count ?? "",
           accuracy: data.accuracy ?? "",
           maxSpeed: data.maxSpeed ?? "",
-          videoKeys: [],  
+          videoKeys: keys.filter((k) => ownsKey(k, clerkUserId)),
         };
-      });
-
-      const uploadPromises = req.files
-        .filter((file) => file.fieldname.startsWith("pitchVideo_"))
-        .map(async (file) => {
-
-          const parts = file.fieldname.split("_");
-          const pitchType = parts[1];
-
-          const safeName = sanitizeFilename(file.originalname);
-          const key = `${clerkUserId}/pitching-sessions/${pitchType}/${Date.now()}-${safeName}`;
-
-          const s3Key = await uploadToS3({
-            bucket: PITCHING_BUCKET,
-            key,
-            contentType: file.mimetype,
-            body: file.buffer,
-          });
-
-          return { pitchType, s3Key };
-        });
-
-      const uploaded = await Promise.all(uploadPromises);
-
-      uploaded.forEach(({ pitchType, s3Key }) => {
-        if (!doc.pitches[pitchType]) {
-          doc.pitches[pitchType] = {
-            count: "",
-            accuracy: "",
-            maxSpeed: "",
-            videoKeys: [],
-          };
-        }
-        doc.pitches[pitchType].videoKeys.push(s3Key);
       });
     }
     const {

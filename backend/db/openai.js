@@ -1,9 +1,30 @@
 // db/openai.js
 const OpenAI = require("openai");
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+// Lazy singleton, for the same reason as db/pinecone.js: a missing key should
+// fail only the routes that use OpenAI, not crash the whole serverless function
+// at import time.
+let _openai = null;
+
+function getOpenAI() {
+  if (!_openai) {
+    const apiKey = process.env.OPENAI_API_KEY;
+    if (!apiKey) {
+      throw new Error("OPENAI_API_KEY is not set");
+    }
+    _openai = new OpenAI({ apiKey });
+  }
+  return _openai;
+}
+
+const openai = {
+  get embeddings() {
+    return getOpenAI().embeddings;
+  },
+  get chat() {
+    return getOpenAI().chat;
+  },
+};
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));

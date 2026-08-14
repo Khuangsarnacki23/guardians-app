@@ -12,15 +12,14 @@ import ChatAssistant from "./ChatAssistant";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faClipboard } from "@fortawesome/free-regular-svg-icons";
 
-const API_PORT = 5001;
-const devHost = window.location.hostname === "localhost";
-
 const FALLBACK_DEV_API = "http://localhost:5001";
 
+// In production the API is served from /api on the same Vercel domain, so an
+// empty base means same-origin requests and CORS never comes into play.
 export const API_BASE_URL =
   process.env.NODE_ENV === "development"
     ? process.env.REACT_APP_API_BASE_URL || FALLBACK_DEV_API
-    : "https://guardians-app-production.up.railway.app";
+    : "";
 
 function Home({setOverlayVisible}) {
   const [mode, setMode] = useState("gym"); 
@@ -51,44 +50,99 @@ function Home({setOverlayVisible}) {
     loadSessions();
   }, [getToken]);
 
+  // Uploads one file straight to S3 using a short-lived presigned URL and
+  // returns the resulting object key. The bytes never pass through the API,
+  // which is what keeps us under Vercel's 4.5MB serverless request body limit.
+  const uploadVideoToS3 = async (file, { kind, pitchType, token }) => {
+    const signRes = await fetch(`${API_BASE_URL}/api/uploads/sign`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        kind,
+        pitchType,
+        filename: file.name,
+        contentType: file.type || "video/mp4",
+        size: file.size,
+      }),
+    });
+
+    if (!signRes.ok) {
+      const { error } = await signRes.json().catch(() => ({}));
+      throw new Error(error || "Could not prepare the video upload");
+    }
+
+    const { url, key } = await signRes.json();
+
+    const putRes = await fetch(url, {
+      method: "PUT",
+      // Must match the ContentType the URL was signed with, or S3 rejects it.
+      headers: { "Content-Type": file.type || "video/mp4" },
+      body: file,
+    });
+
+    if (!putRes.ok) {
+      throw new Error(`Upload failed for ${file.name}`);
+    }
+
+    return key;
+  };
+
   const uploadSessionToApi = async (sessionPayload, gymExercises = []) => {
-    const formData = new FormData();
     const token = await getToken();
-  
-    formData.append("kind", sessionPayload.kind);
-    formData.append("date", sessionPayload.date);
-    formData.append("sessionType", sessionPayload.sessionType);
-    formData.append("timeSpent", sessionPayload.timeSpent);
-  
+
+    const body = {
+      kind: sessionPayload.kind,
+      date: sessionPayload.date,
+      sessionType: sessionPayload.sessionType,
+      timeSpent: sessionPayload.timeSpent,
+    };
+
     if (sessionPayload.kind === "gym") {
-      formData.append("exercises", JSON.stringify(gymExercises));
-      gymExercises.forEach((ex, idx) => {
-        if (ex.video) {
-          formData.append(`exerciseVideo_${idx}`, ex.video);
-        }
-      });
+      body.exercises = await Promise.all(
+        gymExercises.map(async (ex) => {
+          const { video, ...rest } = ex;
+          if (!video) return rest;
+
+          const videoKey = await uploadVideoToS3(video, { kind: "gym", token });
+          return { ...rest, videoKey };
+        })
+      );
     } else if (sessionPayload.kind === "baseball") {
       const pitchData = sessionPayload.pitchData || {};
-      formData.append("pitchData", JSON.stringify(pitchData));
-      formData.append("totalPitches", sessionPayload.totalPitches ?? "");
-  
-      Object.entries(pitchData).forEach(([pitchType, data]) => {
-        (data.videos || []).forEach((file, idx) => {
-          formData.append(`pitchVideo_${pitchType}_${idx}`, file);
-        });
-      });
+      body.totalPitches = sessionPayload.totalPitches ?? "";
+      body.pitchData = {};
+
+      await Promise.all(
+        Object.entries(pitchData).map(async ([pitchType, data]) => {
+          const { videos, ...rest } = data;
+
+          const videoKeys = await Promise.all(
+            (videos || []).map((file) =>
+              uploadVideoToS3(file, { kind: "pitching", pitchType, token })
+            )
+          );
+
+          body.pitchData[pitchType] = { ...rest, videoKeys };
+        })
+      );
     }
-  
+
     const res = await fetch(`${API_BASE_URL}/api/sessions`, {
       method: "POST",
-      headers: { Authorization: `Bearer ${token}` },
-      body: formData,
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
     });
-  
+
     if (!res.ok) throw new Error("Failed to upload session");
-  
+
     const data = await res.json();
-    setSessions(prev => [...prev, data.session]);
+    setSessions((prev) => [...prev, data.session]);
     return data;
   };
   

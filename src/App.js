@@ -35,11 +35,15 @@ function LoggedInView({ setOverlayVisible }) {
 function App() {
   const [videoUrl, setVideoUrl] = useState(null);
   const API_PORT = 5001;
-  const devHost = window.location.hostname === "localhost" || window.location.hostname === "172.20.105.19" ? "172.20.105.19" : window.location.hostname;
+  const devHost =
+    window.location.hostname === "localhost" ||
+    window.location.hostname === "172.20.105.19"
+      ? "172.20.105.19"
+      : window.location.hostname;
   const API_BASE_URL =
-  process.env.NODE_ENV === "development"
-    ? `http://${devHost}:${API_PORT}`
-    : "https://guardians-app-production.up.railway.app";
+    process.env.NODE_ENV === "development"
+      ? `http://${devHost}:${API_PORT}`
+      : "";
   useEffect(() => {
     async function loadVideo() {
       try {
