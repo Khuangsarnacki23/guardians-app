@@ -6,12 +6,18 @@ const { getDb } = require("../db/mongo");
 const { getPineconeIndex } = require("../db/pinecone");
 const { embedText, chatWithContext } = require("../db/openai");
 const { buildProfileSummary } = require("../services/profileText");
+const { sendError } = require("../lib/errors");
 
 // 👇 add JSON parser just for this router (guards against app-level issues)
 router.use(express.json());
 
 // POST /api/assistant/query
 router.post("/query", async (req, res) => {
+  // Tracks how far the request got, so a 500 says which dependency failed
+  // (mongo / openai-embed / pinecone-query / openai-chat) instead of just
+  // "Failed to answer question".
+  let stage = "start";
+
   try {
     const clerkUserId = req.auth?.userId;
     if (!clerkUserId) {
@@ -33,6 +39,7 @@ router.post("/query", async (req, res) => {
       return res.status(400).json({ error: "Question is required" });
     }
 
+    stage = "mongo";
     const db = await getDb();
 
     /* 1) Load training profile from Mongo */
@@ -41,24 +48,34 @@ router.post("/query", async (req, res) => {
     const profileSummary = buildProfileSummary(profileDoc);
 
     /* 2) Embed the user's question */
+    stage = "openai-embed";
     const queryVector = await embedText(userQuestion);
 
-    /* 3) Query Pinecone for this user's most relevant sessions/goals */
-    const index = getPineconeIndex();
-    const namespace = clerkUserId;
+    /* 3) Query Pinecone for this user's most relevant sessions/goals.
+       Retrieval is an enhancement, not a requirement -- if Pinecone is
+       misconfigured or the index is empty, still answer using the profile
+       rather than failing the whole request. */
+    stage = "pinecone-query";
+    let contextChunks = [];
+    try {
+      const index = getPineconeIndex();
+      const pineconeRes = await index.namespace(clerkUserId).query({
+        vector: queryVector,
+        topK: 6,
+        includeMetadata: true,
+      });
 
-    const pineconeRes = await index.namespace(namespace).query({
-      vector: queryVector,
-      topK: 6,
-      includeMetadata: true,
-    });
-
-    const matches = pineconeRes.matches || [];
-    const contextChunks = matches
-      .map((m) => m.metadata?.summary)
-      .filter(Boolean);
+      contextChunks = (pineconeRes.matches || [])
+        .map((m) => m.metadata?.summary)
+        .filter(Boolean);
+    } catch (pineErr) {
+      console.error(
+        `[WARN] Pinecone retrieval failed, answering without context :: ${pineErr?.name}: ${pineErr?.message}`
+      );
+    }
 
     /* 4) Call OpenAI chat with profile + context */
+    stage = "openai-chat";
     const answer = await chatWithContext({
       question: userQuestion,
       profileSummary,
@@ -71,8 +88,14 @@ router.post("/query", async (req, res) => {
       contextCount: contextChunks.length,
     });
   } catch (err) {
-    console.error("Error in /api/assistant/query:", err);
-    res.status(500).json({ error: "Failed to answer question" });
+    sendError(res, err, "Failed to answer question", {
+      route: "POST /api/assistant/query",
+      stage,
+      // OpenAI SDK errors carry these; they identify auth vs quota vs model.
+      openaiStatus: err?.status,
+      openaiType: err?.type || err?.error?.type,
+      openaiCode: err?.code || err?.error?.code,
+    });
   }
 });
 

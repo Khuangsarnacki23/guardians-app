@@ -76,6 +76,34 @@ app.get("/api/health/config", async (req, res) => {
     if (!present) missing.push(key);
   });
 
+  // Inspect the URI's shape without ever revealing the password.
+  let uri = { parsed: false };
+  const raw = process.env.MONGODB_URI || "";
+  if (raw) {
+    const m = raw.match(/^(mongodb(?:\+srv)?):\/\/([^:]*):([^@]*)@([^/?]+)(.*)$/);
+    if (!m) {
+      uri = { parsed: false, note: "Does not match mongodb://user:pass@host" };
+    } else {
+      const [, scheme, user, pass, host, rest] = m;
+      uri = {
+        parsed: true,
+        scheme,
+        username: user,
+        host,
+        passwordLength: pass.length,
+        // The classic failure: pasting the connection string with the
+        // <db_password> placeholder still in it.
+        passwordLooksLikePlaceholder:
+          /[<>]/.test(pass) || /password/i.test(decodeURIComponent(pass)),
+        // These characters MUST be percent-encoded or auth silently fails.
+        passwordNeedsEncoding: /[@:/?#[\]%]/.test(pass.replace(/%[0-9a-fA-F]{2}/g, "")),
+        hasSurroundingWhitespace: raw !== raw.trim(),
+        hasQuotes: /^["']|["']$/.test(raw.trim()),
+        tail: rest.slice(0, 60),
+      };
+    }
+  }
+
   let mongo = "not attempted";
   try {
     const { getDb } = require("./db/mongo");
@@ -86,7 +114,7 @@ app.get("/api/health/config", async (req, res) => {
     mongo = `FAILED: ${err.name}: ${err.message}`.slice(0, 300);
   }
 
-  res.json({ env, missing, mongo });
+  res.json({ env, missing, uri, mongo });
 });
 
 app.use("/api/uploads", requireAuth(), uploadsRoutes);
