@@ -47,9 +47,58 @@ dynamic, so an IP allowlist cannot work. A blocked connection surfaces as
 The new cluster is empty: `database1` and its collections do not exist until
 something writes to them. Reads return nothing until then.
 
+## AWS setup from scratch
+
+### 1. Create two buckets
+
+Names must be globally unique; anything works as long as the env vars match.
+
+| Purpose | Suggested name | Env var |
+| --- | --- | --- |
+| Gym exercise videos | `guardians-gym-videos` | `AWS_S3_GYM_BUCKET` |
+| Pitching videos | `guardians-pitching-videos` | `AWS_S3_PITCHING_BUCKET` |
+
+Create both in the **same region**, and set `AWS_REGION` to it. The code falls
+back to `us-east-2` if that variable is unset.
+
+**Leave "Block all public access" ON.** Presigned URLs carry their own
+signature, so neither uploads nor playback need public objects. Making the
+buckets public would expose every user's video to anyone with the URL.
+
+### 2. Create an IAM user
+
+Create a user with **programmatic access only** (no console login), then attach
+this inline policy. Substitute your real bucket names:
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": ["s3:PutObject", "s3:GetObject"],
+      "Resource": [
+        "arn:aws:s3:::guardians-gym-videos/*",
+        "arn:aws:s3:::guardians-pitching-videos/*"
+      ]
+    }
+  ]
+}
+```
+
+That is the complete set of permissions the app uses: `PutObject` to sign
+uploads, `GetObject` to sign playback URLs. No delete, no list, no bucket-level
+rights — so a leaked key cannot wipe or enumerate your videos.
+
+Generate an access key for that user and put the pair into Vercel
+(`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`) and `backend/.env`. The secret is
+shown exactly once.
+
+### 3. Apply the CORS policy below to **both** buckets.
+
 ## S3 CORS (required for direct uploads)
 
-Apply to both the gym and pitching buckets, under Permissions > CORS:
+Under each bucket's Permissions > CORS:
 
 ```json
 [
