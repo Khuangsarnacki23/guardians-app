@@ -3,6 +3,7 @@ const express = require("express");
 const router = express.Router();
 const { getDb } = require("../db/mongo");
 const { getSignedUrlForKey } = require("../db/s3");
+const { sendError } = require("../lib/errors");
 
 const GYM_BUCKET = process.env.AWS_S3_GYM_BUCKET;
 const PITCHING_BUCKET = process.env.AWS_S3_PITCHING_BUCKET;
@@ -77,8 +78,10 @@ router.get("/", async (req, res) => {
 
     res.json({ sessions: sessionsWithSignedUrls });
   } catch (err) {
-    console.error("Error fetching sessions:", err);
-    res.status(500).json({ error: "Failed to fetch sessions" });
+    sendError(res, err, "Failed to fetch sessions", {
+      route: "GET /api/sessions",
+      stage: "mongo-or-s3-signing",
+    });
   }
 });
 
@@ -175,8 +178,10 @@ router.post("/", async (req, res) => {
       session: doc,
     });
   } catch (err) {
-    console.error("Error creating session:", err);
-    res.status(500).json({ error: "Failed to create session" });
+    sendError(res, err, "Failed to create session", {
+      route: "POST /api/sessions",
+      stage: "mongo",
+    });
   }
 });
 

@@ -2,9 +2,12 @@
 const { Pinecone } = require("@pinecone-database/pinecone");
 
 const PINECONE_INDEX_NAME = process.env.PINECONE_INDEX_NAME;
-const PINECONE_INDEX_HOST =
-  process.env.PINECONE_INDEX_HOST ||
-  "https://guardians-app-ynjee91.svc.aped-4627-b74a.pinecone.io";
+
+// Host is an optional optimization -- passing it skips a describeIndex lookup.
+// It is deliberately NOT hardcoded: a stale host silently points the client at a
+// dead or wrong index even when the name is correct. Left unset, the SDK
+// resolves the correct host from the index name.
+const PINECONE_INDEX_HOST = process.env.PINECONE_INDEX_HOST || undefined;
 
 // Lazy singleton: constructing Pinecone at module load throws when the API key
 // is absent, which would take down every route in the app (including /api/health)
@@ -26,7 +29,9 @@ function getPineconeIndex() {
   if (!PINECONE_INDEX_NAME) {
     throw new Error("PINECONE_INDEX_NAME is not set");
   }
-  return getClient().index(PINECONE_INDEX_NAME, PINECONE_INDEX_HOST);
+  return PINECONE_INDEX_HOST
+    ? getClient().index(PINECONE_INDEX_NAME, PINECONE_INDEX_HOST)
+    : getClient().index(PINECONE_INDEX_NAME);
 }
 
 module.exports = { getPineconeIndex };

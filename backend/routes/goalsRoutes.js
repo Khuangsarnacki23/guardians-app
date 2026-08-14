@@ -2,6 +2,7 @@
 const express = require("express");
 const router = express.Router();
 const { getDb } = require("../db/mongo");
+const { sendError } = require("../lib/errors");
 
 function startOfToday() {
   const now = new Date();
@@ -28,8 +29,10 @@ router.get("/", async (req, res) => {
 
     res.json({ goals: results });
   } catch (err) {
-    console.error("Error fetching goals:", err);
-    res.status(500).json({ error: "Failed to fetch goals" });
+    sendError(res, err, "Failed to fetch goals", {
+      route: "GET /api/goals",
+      stage: "mongo",
+    });
   }
 });
 
@@ -209,21 +212,35 @@ router.post("/", async (req, res) => {
   }
 
   // ---- Re-index Pinecone based on the saved doc ----
-  if (savedDoc.type === "gym") {
-    await indexExerciseGoals(clerkUserId, savedDoc.exerciseGoals || []);
-  } else if (savedDoc.type === "baseball") {
-    await indexPitchGoals(clerkUserId, savedDoc.pitchGoals || []);
+  // The goal is already saved in Mongo at this point. Pinecone only powers the
+  // assistant's search, so a failure here must NOT fail the request -- that was
+  // turning any Pinecone misconfiguration into a 500 on a successful save.
+  let searchIndexed = true;
+  try {
+    if (savedDoc.type === "gym") {
+      await indexExerciseGoals(clerkUserId, savedDoc.exerciseGoals || []);
+    } else if (savedDoc.type === "baseball") {
+      await indexPitchGoals(clerkUserId, savedDoc.pitchGoals || []);
+    }
+  } catch (indexErr) {
+    searchIndexed = false;
+    console.error(
+      `[WARN] Goal saved but Pinecone indexing failed :: ${indexErr?.name}: ${indexErr?.message}`
+    );
   }
 
   res.status(201).json({
     success: true,
     goalId: savedDoc._id,
     goal: savedDoc,
+    searchIndexed,
   });
 
   } catch (err) {
-    console.error("Error saving goals:", err);
-    res.status(500).json({ success: false, error: "Failed to save goals" });
+    sendError(res, err, "Failed to save goals", {
+      route: "POST /api/goals",
+      stage: "mongo-or-validation",
+    });
   }
 });
 
